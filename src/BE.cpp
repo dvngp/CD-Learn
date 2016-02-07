@@ -403,13 +403,23 @@ void BE::updateBuckets(int flippedpred, bool isSelfJoin) {
 					}
 				}
 				for(int j=0;j<buckets[i].size();j++) {
+#ifdef _EXACTCOUNT_
 					Function::projectMultiplyAndMarginalizeSJ(margVarList[i][j],buckets[i][j],*bucketfuncs[i][j],
 						hashtable[i][j],changedindexes[i][j],dirtyBitArrays[i][j]);
+#else
+					Function::approxMultiplyAndMarginalize(margVarList[i][j], buckets[i][j], *bucketfuncs[i][j],
+							hashtable[i][j],changedindexes[i][j]);
+#endif
 				}
 			} else {
 				for(int j=0;j<buckets[i].size();j++) {
+#ifdef _EXACTCOUNT_
 					Function::projectMultiplyAndMarginalize(margVarList[i][j],buckets[i][j],*bucketfuncs[i][j],
 					hashtable[i][j],changedindexes[i][j]);
+#else
+					Function::approxMultiplyAndMarginalize(margVarList[i][j], buckets[i][j], *bucketfuncs[i][j],
+						hashtable[i][j],changedindexes[i][j]);
+#endif
 				}
 			}
 				//changedentries[i].push_back(changedindexes[i][j]);

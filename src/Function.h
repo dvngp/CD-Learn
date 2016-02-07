@@ -54,7 +54,7 @@ public:
 	static void initApproxInfer(vector<Variable*>& marg_variables_, vector<Function*>& functions, 
 	Function& new_func,vector<int>& hashtable,vector<double>& alt_message);
 	static void approxMultiplyAndMarginalize(vector<Variable*>& marg_variables_, vector<Function*>& functions, 
-	Function& new_func,vector<int>& hashtable,vector<int>& margindexes,vector<double>& alt_table,vector<int> ftable);
+	Function& new_func,vector<int>& hashtable,vector<int>& margindexes);
 	vector<int> addressTable;
 };
 

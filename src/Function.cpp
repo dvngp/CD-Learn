@@ -1299,8 +1299,10 @@ void Function::initApproxInfer(vector<Variable*>& marg_variables_, vector<Functi
 	hashtable = vector<int>(dsize,-1);
 }
 
-void Function::approxMultiplyAndMarginalize(vector<Variable*>& marg_variables_, vector<Function*>& functions, 
-	Function& new_func,vector<int>& hashtable,vector<int>& margindexes,vector<double>& alt_table,vector<int> ftable)
+//void Function::approxMultiplyAndMarginalize(vector<Variable*>& marg_variables_, vector<Function*>& functions, 
+//	Function& new_func,vector<int>& hashtable,vector<int>& margindexes,vector<double>& alt_table,vector<int> ftable)
+void Function::approxMultiplyAndMarginalize(vector<Variable*>& marg_variables_, vector<Function*>& functions,
+	Function& new_func, vector<int>& hashtable, vector<int>& margindexes)
 {
 	if (functions.empty()) return;
 	vector<Variable*> variables;
@@ -1378,11 +1380,11 @@ void Function::approxMultiplyAndMarginalize(vector<Variable*>& marg_variables_, 
 			//mult*=functions[i]->table()[0];
 		mult*=functions[i]->table()[offsets[i]];
 		double negml = functions[i]->table()[offsets[i]];
-		if(functions[i]->id()!=-1) {
-			if(ftable[functions[i]->id()]==offsets[i]) {
-				negml = 1 - functions[i]->table()[offsets[i]];
-			}
-		}
+		//if(functions[i]->id()!=-1) {
+		//	if(ftable[functions[i]->id()]==offsets[i]) {
+		//		negml = 1 - functions[i]->table()[offsets[i]];
+		//	}
+		//}
 		mult1 *= negml;
 		//func_address[i]=0;
 		func_address[i]=offsets[i];
@@ -1412,11 +1414,11 @@ void Function::approxMultiplyAndMarginalize(vector<Variable*>& marg_variables_, 
 			hashtable[marg_address] = 1;
 			hashtable[marg_address] = new_func.table()[marg_address];
 			new_func.table()[marg_address] = 0;
-			alt_table[marg_address] = 0;
+			//alt_table[marg_address] = 0;
 			margindexes.push_back(marg_address);
 		}
 		new_func.table()[marg_address]+=mult;
-		alt_table[marg_address]+=mult1;
+		//alt_table[marg_address]+=mult1;
 		int j=f[0];
 		f[0]=0;
 		if(j>=effnumvars) break;
@@ -1451,11 +1453,11 @@ void Function::approxMultiplyAndMarginalize(vector<Variable*>& marg_variables_, 
 			}
 			mult*=functions[k]->table()[func_address[k]];
 			double negml = functions[k]->table()[func_address[k]];
-			if(functions[k]->id()!=-1) {
-				if(ftable[functions[k]->id()]==func_address[k]) {
-					negml = 1 - functions[k]->table()[func_address[k]];
-				}
-			}
+			//if(functions[k]->id()!=-1) {
+			//	if(ftable[functions[k]->id()]==func_address[k]) {
+			//		negml = 1 - functions[k]->table()[func_address[k]];
+			//	}
+			//}
 			mult1 *= negml;
 		}
 		//End Hack

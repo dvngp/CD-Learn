@@ -74,13 +74,14 @@ struct MLN
 	vector<GM> models;
 	vector<vector<double> > softevidences;
 	vector<vector<bool> > isEvidence;
+	vector<bool> isQuery;
 	//vector<JT*> jtrees;
 	vector<BE*> btrees;
 	vector<double> currentcounts;
 	vector<double> datacounts;
 	vector<double> totalgroundings;
 	vector<vector<double> > currentestimates;
-	vector<int> qrypreds;
+	//vector<int> qrypreds;
 	vector<vector<int> > constraints;
 	int burnin;
 	double bestmapcost;
@@ -199,20 +200,22 @@ struct MLN
 			predicates[i] = ps;
 		}
 		if(iType==GIBBS){
+			isQuery.resize(predicates.size());
 			ifstream qfile(qryfile.c_str());
 			while(qfile.good()) {
 				string ln;
 				getline(qfile,ln);
-                                if(ln.size()<1)
-                                   continue;
+                if(ln.size()<1)
+					continue;
 				for(int jj=0;jj<predicates.size();jj++) {
 					if(predicates[jj]->symbol.compare(ln)==0) {
-						qrypreds.push_back(jj);
-                                                break;
+						//qrypreds.push_back(jj);
+						isQuery[jj] = true;
+                        break;
 					}
 				}
 			}
-                       qfile.close();
+            qfile.close();
 		}
 		for(int i=0;i<predicates.size();i++) {
 			predicates[i]->setcsz();
@@ -220,7 +223,7 @@ struct MLN
 		while(infile.good()) {
 			string ln;
 			getline(infile,ln);
-                        //cout<<ln<<endl;
+            //cout<<ln<<endl;
 			if(ln.size()<2) {
 				continue;
 			}
@@ -234,7 +237,7 @@ struct MLN
 			vector<Term*> vartoterm;
 			vector<string> keys;
 			for(int j=0;j<toks2.size();j++) {
-                                //cout<<toks2[j]<<endl;
+                //cout<<toks2[j]<<endl;
 				if(toks2[j][0]=='!') {
 					wc->sign.push_back(false);
 				}
@@ -441,9 +444,10 @@ struct MLN
 		probabilities.resize(predicates.size());
 		currentestimates.resize(predicates.size());
 		for(int i=0;i<predicates.size();i++) {
-			bool isquery = false;
-			if(find(qrypreds.begin(),qrypreds.end(),i)!=qrypreds.end()) {
-				isquery=true;
+			//bool isquery = false;
+			//if(find(qrypreds.begin(),qrypreds.end(),i)!=qrypreds.end()) {
+			if(isQuery[i]) {
+				//isquery=true;
 				//nevids[i].clear();
 				//nevids[i].resize(assignments[i].size());
 				probabilities[i].resize(assignments[i].size());
@@ -784,18 +788,19 @@ struct MLN
 			new_value = 0;
 			assignments[flippedPred][nidx] = 0;
 		}
-		if(doinfer && iter > burnin) {
-/*			for(int q=0;q<qrypreds.size();q++) {
-				int p = qrypreds[q];
-				if(flippedPred==p) {
-					currentestimates[p][nidx] = exp(poswt-z);
-				}
-				for(int n=0;n<probabilities[p].size();n++) {
-					probabilities[p][n] += currentestimates[p][n];
-				}
-*/
-			numsamples[flippedPred][nidx]++;
+		if(doinfer && iter > burnin &&  isQuery[flippedPred]) {
 			probabilities[flippedPred][nidx] += prob;
+			numsamples[flippedPred][nidx]++;
+			//for(int q=0;q<qrypreds.size();q++) {
+			//	int p = qrypreds[q];
+				//if(flippedPred==p) {
+					//currentestimates[p][nidx] = exp(poswt-z);
+					//probabilities[flippedPred][nidx] += prob;
+					//numsamples[flippedPred][nidx]++;
+				//}
+				//for(int n=0;n<probabilities[p].size();n++) {
+				//	probabilities[p][n] += currentestimates[p][n];
+				//}			
 			//}
 		}		
 		bool revert=false;
@@ -986,7 +991,7 @@ struct MLN
 			int flippedPred = flippedPreds[t1];
 			if (isEvidence[flippedPred][nidx])
 				continue;
-			if (iter > burnin && doinfer) {
+			if (iter > burnin && doinfer && isQuery[flippedPred]) {
 				numsamples[flippedPred][nidx]++;
 				probabilities[flippedPred][nidx] += exp(probs[t1] - z);
 			}
@@ -1018,6 +1023,7 @@ struct MLN
 		}
 	}
 
+	//LEARNING USING CD
 	void sample(string mlnfile,string evidfile,string qryfile,int niters,int bound,
 		string outmln,string csfile) {
 		/*
@@ -1035,10 +1041,11 @@ struct MLN
 		cout<<"done init..."<<endl;
 		compileall(bound);
 
-		//Ignore any evidence on non-evidence atoms
+		//Ignore any evidence on specified non-evidence atoms
 		for (int i = 0; i<predicates.size(); i++) {
-			bool isquery = false;
-			if (find(qrypreds.begin(), qrypreds.end(), i) != qrypreds.end()) {
+			//bool isquery = false;
+			//if (find(qrypreds.begin(), qrypreds.end(), i) != qrypreds.end()) {
+			if(isQuery[i]) {
 				for (int j = 0; j < nevids[i].size(); j++) {
 					nevids[i][j] = j;
 				}
@@ -1413,7 +1420,7 @@ struct MLN
 		}
 		double cll=0;
 		double cnt=0;
-		for(int q=0;q<qrypreds.size();q++) {
+		/*for(int q=0;q<qrypreds.size();q++) {
 			int i = qrypreds[q];
 			for(int j1=0;j1<nevids[i].size();j1++) {
 				int j = nevids[i][j1];
@@ -1434,6 +1441,7 @@ struct MLN
 		ofstream tmpf(outfile.c_str());
 		tmpf<<cll/cnt<<endl;
 		tmpf.close();
+		*/
 	}
 
 
@@ -1514,6 +1522,8 @@ struct MLN
 #ifdef _SOFTEVID_
 			ofstream out(outfile.c_str());
 			for(int i=0;i<probabilities.size();i++) {
+				if (!isQuery[i])
+					continue;
 				for(int j=0;j<probabilities[i].size();j++) {
 					vector<int> grd;
 					getgrounding(i,j,grd);
@@ -1534,6 +1544,8 @@ struct MLN
 #else
 		ofstream out(outfile.c_str());
 		for (int i = 0; i<probabilities.size(); i++) {
+			if (!isQuery[i])
+				continue;
 			for (int j = 0; j<probabilities[i].size(); j++) {
 				vector<int> grd;
 				getgrounding(i, j, grd);
