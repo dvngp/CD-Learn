@@ -24,12 +24,13 @@ CPP_DEPS += \
 ./src/MAIN.d \
 ./src/Variable.d 
 
-
+#CFLAGS = -D _LOGGING_ -D _SOFTEVID_
+CFLAGS = -D _LOGGING_
 # Each subdirectory must supply rules for building sources it contributes
 src/%.o: ../src/%.cpp
 	@echo 'Building file: $<'
 	@echo 'Invoking: GCC C++ Compiler'
-	g++ -static -DNDEBUG -O3 -c -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o "$@" "$<"
+	g++ $(CFLAGS) -static -DNDEBUG -O3 -c -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 
