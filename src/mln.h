@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <fstream>
 #include <string>
+#include<iomanip>
 using namespace std;
 #include "stringconversionutils.h"
 #include "GM.h"
@@ -52,6 +53,7 @@ struct WClause
 	vector<bool> sign;
 	double weight;
 	double numgroundings;
+	bool isHard;
 };
 
 enum InferenceType{
@@ -232,6 +234,12 @@ struct MLN
 			vector<string> toks1;
 			LStringConversionUtils::tokenize(ln,toks1,":");
 			wc->weight = LStringConversionUtils::toDouble(toks1[0]);
+			if (wc->weight >= 10) {
+				wc->isHard = true;
+			}
+			else {
+				wc->isHard = false;
+			}
 			vector<string> toks2;
 			LStringConversionUtils::tokenize(toks1[1],toks2," v ");
 			vector<Term*> vartoterm;
@@ -417,14 +425,6 @@ struct MLN
 	}
 
 		void countInData(int bound) {
-			for(int i=0;i<assignmentsevid.size();i++) {
-				for(int j=0;j<assignmentsevid[i].size();j++) {
-					if(assignmentsevid[i][j]==0) {
-						//closed world counting
-						assignments[i][j] = 0;
-					}
-				}
-			}
 			for(int i=0;i<models.size();i++) {
 				double estimate;
 				vector<int> bw_order;
@@ -472,6 +472,51 @@ struct MLN
 			}
 		}
 
+	}
+
+	void compileLearning(int bound) {
+		for (int i = 0; i<assignmentsevid.size(); i++) {
+			for (int j = 0; j<assignmentsevid[i].size(); j++) {
+				if (assignmentsevid[i][j] == 0) {
+					//closed world counting
+					assignments[i][j] = 0;
+				}
+			}
+		}
+		for (int i = 0; i<clauses.size(); i++) {
+			createModels(i);
+			cout << "created model " << i << endl;
+		}
+		//cout<<"Exact counting..."<<endl;
+		countInData(bound);
+		//cout<<"Init Learning..."<<endl;
+		initinfer();
+		for (int i = 0; i<clauses.size(); i++) {
+			initfunctions(i);
+			cout << "Init model " << i << endl;
+		}
+		for (int i = 0; i < nevids.size();i++) {
+			//ignore evidence on all qry atoms
+			//All qry atoms are NE
+			//ALL non-qry atoms are closed world
+			nevids[i].clear();
+			if (isQuery[i]) {
+				for (int j = 0; j < assignments[i].size(); j++) {
+					nevids[i].push_back(j);
+					double r = rand() / (double)RAND_MAX;
+					if (r < 0.5) {
+						assignments[i][j] = 0;
+					} 
+					else {
+						assignments[i][j] = 1;
+					}
+				}
+			}
+		}
+		for (int i = 0; i < clauses.size(); i++) {
+			initfunctions(i);
+			cout << "Set model " << i << endl;
+		}
 	}
 
 	void compileall(int bound) {
@@ -589,6 +634,8 @@ struct MLN
 		models.push_back(gm);
 		totalgroundings.push_back(clauses[clausenum]->numgroundings);
 	}
+
+	
 
 	void initfunctions(int clausenum) {
 		double totgrnds = 1;
@@ -1039,18 +1086,8 @@ struct MLN
 		alpha = 0.001;
 		readConstraints(csfile);
 		cout<<"done init..."<<endl;
-		compileall(bound);
-
-		//Ignore any evidence on specified non-evidence atoms
-		for (int i = 0; i<predicates.size(); i++) {
-			//bool isquery = false;
-			//if (find(qrypreds.begin(), qrypreds.end(), i) != qrypreds.end()) {
-			if(isQuery[i]) {
-				for (int j = 0; j < nevids[i].size(); j++) {
-					nevids[i][j] = j;
-				}
-			}
-		}
+		compileLearning(bound);
+		ofstream wfile("wlog");
 
 		cout<<"Init Gibbs..."<<endl;
 		initGibbs(bound);
@@ -1068,7 +1105,7 @@ struct MLN
 		momentum = 0;
 		cglambda = 100;
 		//init weights
-                cout<<"Initial Weights"<<endl;
+                //cout<<"Initial Weights"<<endl;
 		for(int j=0;j<avgcounts.size();j++) {
 			/*clauses[j]->weight = alpha*(datacounts[j]/totalgroundings[j]);
 			double r = (double)rand()/RAND_MAX;
@@ -1077,7 +1114,7 @@ struct MLN
 			else
 				clauses[j]->weight = alpha*r;
                         */
-            cout<<clauses[j]->weight<<" ";
+            //cout<<clauses[j]->weight<<" ";
 			weights[j] = clauses[j]->weight;
 			oldweights[j] = clauses[j]->weight;
 		}
@@ -1123,7 +1160,9 @@ struct MLN
 				sqavgcounts[j] += (totalgroundings[j]-btrees[j]->currPRVal)*(totalgroundings[j]-btrees[j]->currPRVal);
 				//clauses[j]->weight += (datacounts[j]-totalgroundings[j]+btrees[j]->currPRVal)*alpha - lambda*clauses[j]->weight;
 				//avgcounts[j] = 0;
-				//cout<<datacounts[j]<<","<<totalgroundings[j]-btrees[j]->currPRVal<<endl;
+				if (j >4000) {
+					cout << datacounts[j] << "," << totalgroundings[j] - btrees[j]->currPRVal << endl;
+				}
 				//cout<<clauses[j]->weight<<",";
 			}
 			allsamplecounts.push_back(tmpcounts);
@@ -1193,6 +1232,7 @@ struct MLN
 					//cout<<dw[v1]<<" "<<gradient[v1]<<endl;
 				}
 				if(allzeros) {
+					cout << "allzeros" << endl;
 					done=true;
 					break;
 				}
@@ -1234,6 +1274,8 @@ struct MLN
 //			cout<<"alpha="<<alpha<<endl;
 			//cout<<dHd<<" "<<dd<<endl;
 			for (int w = 0; w < numWeights; w++) {
+				if (clauses[w]->isHard)
+					continue;
 				wchange[w] = dw[w] * alpha + (weights[w] - oldweights[w]) * momentum;
 				//cout<<"wchange="<<wchange[w]<<endl;
 			}
@@ -1247,17 +1289,22 @@ struct MLN
 				break;
 			}
        		for (int w = 0; w < numWeights; w++) {
+				if (clauses[w]->isHard) {
+					wfile << "10 ";
+					continue;
+				}
 				oldweights[w] = weights[w];
 				oldgradient[w] = gradient[w];
 				weights[w] += wchange[w];
-         		averageweights[w] = ((effiters-1) * averageweights[w] + weights[w])/(effiters);
-				cout<<averageweights[w]<<" ";
 				clauses[w]->weight = weights[w];
+				averageweights[w] = ((effiters - 1) * averageweights[w] + weights[w]) / (effiters);
 				avgcounts[w] = 0;
 				sqavgcounts[w] = 0;
+				wfile << averageweights[w] << " ";
 			}
 			allsamplecounts.clear();
-			cout<<endl;
+			wfile<<endl;
+			wfile.flush();
 			{
 				double sumVN = 0;
                 vector<double> sumN(avgcounts.size());
@@ -1351,6 +1398,7 @@ struct MLN
 		infile.close();
 		ofile.close();
 		fs1.close();
+		wfile.close();
 	}
 
 	void testing(string mlnfile,string evidfile,string qryfile,int niters,int bound,string outfile) {
@@ -1471,7 +1519,32 @@ struct MLN
 		time(&start);
 		//cout << softevidences[0][0] << endl;
 		//while(true) {
-		for(int t=0;t<niters;t++) {
+#ifdef _LOGGING_
+		ofstream logfile("plog.dat");
+		vector<vector<int> > sampleddata;
+		for (int i = 0; i < predicates.size(); i++) {
+			vector<int> tmp;
+			sampleddata.push_back(tmp);
+		}
+		int numpoints = 100;
+		srand(192230943);
+		for (int i = 0; i < predicates.size(); i++) {
+			if (nevids[i].size() == 0 || !isQuery[i])
+				continue;
+			for (int j = 0; j < numpoints; j++) {
+				int n1 = rand() % nevids[i].size();
+				sampleddata[i].push_back(nevids[i][n1]);
+			}
+		}
+#endif
+		int r = rand();
+		srand(r + time(NULL));
+		int totnevids = 0;
+		for (int i = 0; i < predicates.size(); i++) {
+			totnevids = totnevids + nevids[i].size();
+		}
+		int maxiters = totnevids * 1000;
+		for(int t=0;t<maxiters;t++) {
 			int pidx=0;
 			int nidx = 0;
 			pidx = rand()%predicates.size();
@@ -1504,6 +1577,22 @@ struct MLN
 				gibbsflip(pidx, nidx, t, true);
 			else
 				block(constraints[blocked], nidx,t, true);
+#ifdef _LOGGING_
+			if (t >= burnin) {
+				logfile << t - burnin << " ";
+				for (int t1 = 0; t1 < sampleddata.size(); t1++) {
+					for (int t2 = 0; t2 < sampleddata[t1].size(); t2++) {
+						int sx = sampleddata[t1][t2];
+						double p = 0;
+						if (numsamples[t1][sx] > 0)
+							p = probabilities[t1][sx] / (numsamples[t1][sx]);
+						logfile << p << " ";
+					}
+				}
+				logfile << endl;
+				logfile.flush();
+			}
+#endif
 			//if (assignments[0][0] == assignments[2][0] || assignments[1][0] == assignments[3][0]) {
 			//	int dum = 1;
 			//}
@@ -1518,7 +1607,17 @@ struct MLN
 					}
 				}
 			}*/
+			time_t currtime;
+			time(&currtime);
+			int cp = difftime(currtime, start);
+			if (cp > niters) {
+				cout << "Timeout" << endl;
+				break;
+			}
 		}
+#ifdef _LOGGING_
+		logfile.close();
+#endif
 #ifdef _SOFTEVID_
 			ofstream out(outfile.c_str());
 			for(int i=0;i<probabilities.size();i++) {
@@ -1558,8 +1657,7 @@ struct MLN
 					}
 					else {
 						out <<"0.5 " << predicates[i]->symbol << "(";
-					}
-					
+					}	
 				}
 				else {
 					double p = probabilities[i][j] / (numsamples[i][j]);
