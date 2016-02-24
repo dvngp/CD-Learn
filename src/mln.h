@@ -1517,6 +1517,8 @@ struct MLN
 		avgcounts.resize(models.size());
 		time_t start;
 		time(&start);
+		time_t lastlog;
+		time(&lastlog);
 		//cout << softevidences[0][0] << endl;
 		//while(true) {
 #ifdef _LOGGING_
@@ -1529,20 +1531,35 @@ struct MLN
 		int numpoints = 100;
 		srand(192230943);
 		for (int i = 0; i < predicates.size(); i++) {
-			if (nevids[i].size() == 0 || !isQuery[i])
+			if (!isQuery[i])
+				continue;
+#ifdef _SOFTEVID_
+			for (int j = 0; j < numpoints; j++) {
+				int n1 = rand() % softevidences[i].size();
+				sampleddata[i].push_back(n1);
+			}
+#else
+			if (nevids[i].size() == 0)
 				continue;
 			for (int j = 0; j < numpoints; j++) {
 				int n1 = rand() % nevids[i].size();
 				sampleddata[i].push_back(nevids[i][n1]);
 			}
+#endif
 		}
 #endif
 		int r = rand();
 		srand(r + time(NULL));
 		int totnevids = 0;
+#ifdef _SOFTEVID_
+		for (int i = 0; i < softevidences.size(); i++) {
+			totnevids += softevidences[i].size();
+		}
+#else
 		for (int i = 0; i < predicates.size(); i++) {
 			totnevids = totnevids + nevids[i].size();
 		}
+#endif
 		int maxiters = totnevids * 1000;
 		for(int t=0;t<maxiters;t++) {
 			int pidx=0;
@@ -1578,7 +1595,11 @@ struct MLN
 			else
 				block(constraints[blocked], nidx,t, true);
 #ifdef _LOGGING_
-			if (t >= burnin) {
+			time_t ntime;
+			time(&ntime);
+			int ndiff = difftime(ntime, lastlog);
+			if (t >= burnin && ndiff > 1) {
+				lastlog = ntime;
 				logfile << t - burnin << " ";
 				for (int t1 = 0; t1 < sampleddata.size(); t1++) {
 					for (int t2 = 0; t2 < sampleddata[t1].size(); t2++) {
