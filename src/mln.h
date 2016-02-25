@@ -452,23 +452,25 @@ struct MLN
 				//nevids[i].resize(assignments[i].size());
 				probabilities[i].resize(assignments[i].size());
 				//currentestimates[i]=vector<double>(assignments[i].size(),0.5);
-#ifdef _SOFTEVID_
-				for(int j=0;j<probabilities[i].size();j++) {
-					double p = softevidences[i][j];
-					probabilities[i][j] = p;
+
+//#ifdef _SOFTEVID_
+//				
+//				for(int j=0;j<probabilities[i].size();j++) {
+//					double p = softevidences[i][j];
+//					probabilities[i][j] = p;
 					//currentestimates[i].push_back(p);
-				}
-#else
-				for (int j = 0; j<probabilities[i].size(); j++) {
-					probabilities[i][j] = 0;
+//				}
+//#else
+//				for (int j = 0; j<probabilities[i].size(); j++) {
+//					probabilities[i][j] = 0;
 					//learning only
 					/*if(isquery) {
 					nevids[i][j] = j;
 					}*/
 
 					//currentestimates[i].push_back(p);
-				}
-#endif
+//				}
+//#endif
 			}
 		}
 
