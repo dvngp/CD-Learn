@@ -1495,7 +1495,7 @@ struct MLN
 	}
 
 
-	void doSampling(string mlnfile,string evidfile,string qryfile,int niters, int bound, string outfile, string csfile) {
+	void doSampling(string mlnfile,string evidfile,string qryfile,int niters, int bound, string outfile, string csfile, string logfilename) {
 		iType = GIBBS;
 		init(mlnfile,evidfile,qryfile);
 		readConstraints(csfile);
@@ -1512,6 +1512,7 @@ struct MLN
 		cout<<"Init Gibbs..."<<endl;
 		//set bound 10
 		initGibbs(bound);
+		int fileid = 0;
 		cout<<"starting Gibbs..."<<endl;
 		//cout<<"Done compiling.."<<endl;
 		//int i = 0;
@@ -1524,7 +1525,7 @@ struct MLN
 		//cout << softevidences[0][0] << endl;
 		//while(true) {
 #ifdef _LOGGING_
-		ofstream logfile("plog.dat");
+		ofstream logfile(logfilename.c_str());
 		vector<vector<int> > sampleddata;
 		for (int i = 0; i < predicates.size(); i++) {
 			vector<int> tmp;
@@ -1600,7 +1601,7 @@ struct MLN
 			time_t ntime;
 			time(&ntime);
 			int ndiff = difftime(ntime, lastlog);
-			if (t >= burnin && ndiff > 1) {
+			if (t >= burnin && ndiff > 10) {
 				lastlog = ntime;
 				logfile << t - burnin << " ";
 				for (int t1 = 0; t1 < sampleddata.size(); t1++) {
@@ -1614,6 +1615,11 @@ struct MLN
 				}
 				logfile << endl;
 				logfile.flush();
+				stringstream sh;
+				sh << fileid;
+				string sname = sh.str() + "-" + outfile;
+				//writeOutfile(sname);
+				fileid++;
 			}
 #endif
 			//if (assignments[0][0] == assignments[2][0] || assignments[1][0] == assignments[3][0]) {
@@ -1641,34 +1647,38 @@ struct MLN
 #ifdef _LOGGING_
 		logfile.close();
 #endif
-#ifdef _SOFTEVID_
-			ofstream out(outfile.c_str());
-			for(int i=0;i<probabilities.size();i++) {
-				if (!isQuery[i])
-					continue;
-				for(int j=0;j<probabilities[i].size();j++) {
-					vector<int> grd;
-					getgrounding(i,j,grd);
-					if (numsamples[i][j] == 0) {
-						out << softevidences[i][j] << " "<< predicates[i]->symbol << "(";
-					}
-					else {
-						double p = probabilities[i][j] / (numsamples[i][j]);
-						out << p << " " << predicates[i]->symbol << "(";
-					}
-					for(int k=0;k<grd.size();k++) {
-						out<<grd[k];
-						if(k!=grd.size()-1)
-							out<<",";
-					}
-					out<<")\n";
-				}
-#else
+		writeOutfile(outfile);
+		}
+
+	void writeOutfile(string outfile)
+	{
 		ofstream out(outfile.c_str());
-		for (int i = 0; i<probabilities.size(); i++) {
+#ifdef _SOFTEVID_
+		for (int i = 0; i < probabilities.size(); i++) {
 			if (!isQuery[i])
 				continue;
-			for (int j = 0; j<probabilities[i].size(); j++) {
+			for (int j = 0; j < probabilities[i].size(); j++) {
+				vector<int> grd;
+				getgrounding(i, j, grd);
+				if (numsamples[i][j] == 0) {
+					out << softevidences[i][j] << " " << predicates[i]->symbol << "(";
+				}
+				else {
+					double p = probabilities[i][j] / (numsamples[i][j]);
+					out << p << " " << predicates[i]->symbol << "(";
+				}
+				for (int k = 0; k < grd.size(); k++) {
+					out << grd[k];
+					if (k != grd.size() - 1)
+						out << ",";
+				}
+				out << ")\n";
+			}
+#else
+		for (int i = 0; i < probabilities.size(); i++) {
+			if (!isQuery[i])
+				continue;
+			for (int j = 0; j < probabilities[i].size(); j++) {
 				vector<int> grd;
 				getgrounding(i, j, grd);
 				if (numsamples[i][j] == 0) {
@@ -1676,17 +1686,17 @@ struct MLN
 						out << "0 " << predicates[i]->symbol << "(";
 					}
 					else if (assignmentsevid[i][j] == -2) {
-						out <<"1 " << predicates[i]->symbol << "(";
+						out << "1 " << predicates[i]->symbol << "(";
 					}
 					else {
-						out <<"0.5 " << predicates[i]->symbol << "(";
-					}	
+						out << "0.5 " << predicates[i]->symbol << "(";
+					}
 				}
 				else {
 					double p = probabilities[i][j] / (numsamples[i][j]);
 					out << p << " " << predicates[i]->symbol << "(";
 				}
-				for (int k = 0; k<grd.size(); k++) {
+				for (int k = 0; k < grd.size(); k++) {
 					out << grd[k];
 					if (k != grd.size() - 1)
 						out << ",";
@@ -1694,12 +1704,9 @@ struct MLN
 				out << ")\n";
 			}
 #endif
-			}
-			out.close();
-
 		}
+		out.close();
+	}
+
 };
-
-
-
 #endif /* MLN_H_ */

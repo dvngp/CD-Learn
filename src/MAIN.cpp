@@ -34,7 +34,6 @@ void rec(vector<vector<int> > tmpx) {
 
 int main(int argc, char* argv[])
 {
-
 	//CD learning
 	if(argc < 9) {
 		cout<<"Usage::./cdlearn mlnfile evidfile queryfile totaliters ibound LEARN outputmlnfile constraintsfile"<<endl;
@@ -86,7 +85,8 @@ int main(int argc, char* argv[])
 		//st1 >> aval;
 		string outresfile(argv[7]);
 		string csfile(argv[8]);
-		mln.doSampling(mlnfile,evidfile,qryfile,itrs,bound,outresfile,csfile);
+		string logfilename(argv[9]);
+		mln.doSampling(mlnfile,evidfile,qryfile,itrs,bound,outresfile,csfile,logfilename);
 	}
 
 	//string outresfile(argv[7]);
