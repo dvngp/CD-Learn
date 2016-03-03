@@ -933,6 +933,10 @@ struct MLN
 			}
 		}
 		assignments[flippedPred][nidx] = 1;
+		if (isQuery[flippedPred]) {
+			probabilities[flippedPred][nidx] += 1;
+			numsamples[flippedPred][nidx]++;
+		}
 	}
 
 
@@ -1563,8 +1567,10 @@ struct MLN
 			totnevids = totnevids + nevids[i].size();
 		}
 #endif
-		int maxiters = totnevids * 1000;
-		for(int t=0;t<maxiters;t++) {
+		int maxiters = totnevids * 10000;
+		int t = 0;
+		while(1) {
+		//for(int t=0;t<maxiters;t++) {
 			int pidx=0;
 			int nidx = 0;
 			pidx = rand()%predicates.size();
@@ -1572,8 +1578,8 @@ struct MLN
 			nidx = rand()%assignments[pidx].size();
 			double r1 = rand() / (double)(RAND_MAX);
 			if(r1 < softevidences[pidx][nidx]) {
-				//if (assignments[pidx][nidx] != 1)
-				//	clamp(pidx, nidx);
+				if (assignments[pidx][nidx] != 1)
+					clamp(pidx, nidx);
 				continue;
 			}
 #else
@@ -1601,9 +1607,9 @@ struct MLN
 			time_t ntime;
 			time(&ntime);
 			int ndiff = difftime(ntime, lastlog);
-			if (t >= burnin && ndiff > 10) {
+			if (t >= burnin && ndiff > 100) {
 				lastlog = ntime;
-				logfile << t - burnin << " ";
+				/*logfile << t - burnin << " ";
 				for (int t1 = 0; t1 < sampleddata.size(); t1++) {
 					for (int t2 = 0; t2 < sampleddata[t1].size(); t2++) {
 						int sx = sampleddata[t1][t2];
@@ -1615,17 +1621,18 @@ struct MLN
 				}
 				logfile << endl;
 				logfile.flush();
+				*/
 				stringstream sh;
 				sh << fileid;
 				string sname = sh.str() + "-" + outfile;
-				//writeOutfile(sname);
+				writeOutfile(sname);
 				fileid++;
 			}
 #endif
 			//if (assignments[0][0] == assignments[2][0] || assignments[1][0] == assignments[3][0]) {
 			//	int dum = 1;
 			//}
-			cout<<t<<" ";
+			//cout<<t<<" ";
 			//update transitions
 			/*if (t > burnin && t%aval == 0) {
 				for (int i = 0; i < probabilities.size(); i++) {
@@ -1643,11 +1650,12 @@ struct MLN
 				cout << "Timeout" << endl;
 				break;
 			}
+			t++;
 		}
 #ifdef _LOGGING_
 		logfile.close();
 #endif
-		writeOutfile(outfile);
+		//writeOutfile(outfile);
 		}
 
 	void writeOutfile(string outfile)
@@ -1675,6 +1683,7 @@ struct MLN
 				out << ")\n";
 			}
 #else
+
 		for (int i = 0; i < probabilities.size(); i++) {
 			if (!isQuery[i])
 				continue;
