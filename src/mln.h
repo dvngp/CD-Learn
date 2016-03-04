@@ -1655,7 +1655,7 @@ struct MLN
 #ifdef _LOGGING_
 		logfile.close();
 #endif
-		//writeOutfile(outfile);
+		writeOutfile(outfile);
 		}
 
 	void writeOutfile(string outfile)
