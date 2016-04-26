@@ -26,6 +26,7 @@ CPP_DEPS += \
 
 #CFLAGS = -D _LOGGING_ -D _SOFTEVID_
 #CFLAGS = -D _LOGGING_
+CFLAGS = -D _EXACTCOUNT_
 # Each subdirectory must supply rules for building sources it contributes
 src/%.o: ../src/%.cpp
 	@echo 'Building file: $<'
